@@ -1,37 +1,38 @@
-from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, EmailStr
-from models.events import Event
+from typing import Optional
+from pydantic import ConfigDict, EmailStr
+from sqlmodel import Field, SQLModel
 
-class User(BaseModel):
-    email: EmailStr
+class User(SQLModel, table=True):
+    __tablename__ = "user"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
     password: str
-    events: Optional[List[Event]] = None
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {
-                "email": "fastapi@packt.com",
-                "password": "strong!!!",
-                "events": [],
-            }
+            "example": {"email": "fastapi@packt.com", "password": "strong!!!"}
         }
     )
 
-
-class NewUser(User):
-    def insert_new_user(self) -> None:
-        """Заглушка"""
-
-
-class UserSignIn(BaseModel):
+class UserCreate(SQLModel):
     email: EmailStr
     password: str
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {
-                "email": "fastapi@packt.com",
-                "password": "strong!!!",
-            }
+            "example": {"email": "fastapi@packt.com", "password": "strong!!!"}
         }
     )
+
+class UserSignIn(SQLModel):
+    email: EmailStr
+    password: str
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"email": "fastapi@packt.com", "password": "strong!!!"}
+        }
+    )
+
+NewUser = UserCreate

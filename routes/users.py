@@ -1,40 +1,38 @@
-from fastapi import APIRouter, HTTPException, status
-from models.users import NewUser, UserSignIn
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlmodel import Session, select
+from database.connection import get_session
+from models.users import User, UserCreate, UserSignIn
 
 user_router = APIRouter(tags=["User"])
 
-users = {}
-
-
 @user_router.post("/signup")
-async def sign_new_user(data: NewUser) -> dict:
-    if data.email in users:
+async def sign_new_user(data: UserCreate, session: Session = Depends(get_session)) -> dict:
+    existing = session.exec(select(User).where(User.email == data.email)).first()
+    if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="User with supplied email already exists",
         )
 
-    users[data.email] = data
-    return {"message": "User successfully registered!"}
-
+    user = User(email=data.email, password=data.password)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return {"message": "User successfully registered!", "id": user.id}
 
 @user_router.post("/signin")
-async def sign_user_in(user: UserSignIn) -> dict:
-    if user.email not in users:
+async def sign_user_in(user: UserSignIn, session: Session = Depends(get_session)) -> dict:
+    stored = session.exec(select(User).where(User.email == user.email)).first()
+    if not stored:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User does not exist",
         )
 
-    if users[user.email].password != user.password:
+    if stored.password != user.password:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Wrong credentials passed",
         )
 
-    return {"message": "User signed in successfully"}
-
-
-@user_router.get("/", response_model=dict)
-async def get_users_count() -> dict:
-    return {"registered_users": len(users)}
+    return {"message": "User signed in successfully", "id": stored.id}
